@@ -9,7 +9,7 @@ use panic_halt as _;
 
 use cortex_m_rt::entry;
 use stm32f4xx_hal::{
-    gpio::{self, Edge, gpiob, gpioc}, pac::{self, rcc::cfgr}, prelude::*, rcc::Config
+    adc::{self, Adc, config::AdcConfig}, gpio::{self, Edge, gpiob, gpioc}, pac::{self, ADC1, adc1, rcc::cfgr}, prelude::*, rcc::Config
 };
 
 #[allow(clippy::empty_loop)]
@@ -28,18 +28,20 @@ fn main() -> ! {
     let gpiob = p.GPIOB.split(&mut rcc);   // GPIO-B port is a low-risk peripheral to access, so we'll just split it.
     let mut keyLeft = gpiob.pb10.into_pull_down_input(); // The diagram has this as a pull-down'd input
 
-    let clocks = rcc.freeze(Config::hse(8.MHz()).sysclk(48.MHz())); // the "freeze" method applies a configuration to the clock config registry
+    let mut clocks: stm32f4xx_hal::rcc::Rcc = rcc.freeze(Config::hse(8.MHz()).sysclk(48.MHz())); // the "freeze" method applies a configuration to the clock config registry
     // the clock is configured for an 8MHz external oscilator on the OSC pins, caled the HSE. This is chained with a sysclk of 48MHz, which will be achieved through internal multiplication of thre clock's signal.
     
+    let mut adc0 = Adc::new(p.ADC1, true, AdcConfig::default(),&mut clocks );
+    // value is moved to clocks. instance and configure an ADC.
+    let mut p0 = gpiob.pb0.into_analog();
+    
 
- 
+    loop { 
 
-    loop {
-
+        adc0.read( &mut p0);
         if keyLeft.is_high() {
 
             
-
         }
 
     }
