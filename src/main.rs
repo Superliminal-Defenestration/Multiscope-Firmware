@@ -32,10 +32,36 @@ fn main() -> ! {
 
     let mut clocks: stm32f4xx_hal::rcc::Rcc = rcc.freeze(RccConfig::hse(8.MHz()).sysclk(48.MHz())); // the "freeze" method applies a configuration to the clock config registry
     // the clock is configured for an 8MHz external oscilator on the OSC pins, caled the HSE. This is chained with a sysclk of 48MHz, which will be achieved through internal multiplication of thre clock's signal.
-    let mut serial: Serial<UART4> = Serial::new(p.UART4, (gpioc.pc10,gpioc.pc11), Config::default().baudrate(3200.bps()), &mut clocks).unwrap();
+    let mut serial: Serial<UART4> = Serial::new(p.UART4, (gpioc.pc10,gpioc.pc11), Config::default().baudrate(3200.bps()), &mut clocks).unwrap(); // value is moved to clocks.
 
-    // let mut adcDriver0 = Adc::new(p.ADC1, true, AdcConfig::default(),&mut clocks );
-    // value is moved to clocks. instance and configure an ADC.
+
+    writeln!(serial, "about to instance adc").ok();
+
+    
+
+    /// yeahhh so you deadass can't use the ADC when emulating with renode since renode emulates the individual ADC registries/peripherals
+    // but DOESNT emulate the common registries (CADC_CRR etc) 
+    // if you look at the init behavior for the adc stuff in the hal it'll loop/hang until the adc gets a calibrtion bit and an enable bit / ready bit 
+    // which obv we are not getting and no matter how I try to mess with the memory directly the area that would be the CADC_CRR is inaccessible
+    // since it doesn't start at a new page (renode limits memory creation to align to the pages) and there's no way to 
+    // allias memory
+    #[cfg(feature = "emulation")]
+    let mut adcDriver0 = (); // dummy placeholder for ADC
+
+    #[cfg(not(feature = "emulation"))] 
+    let mut adcDriver0 = Adc::new( // value is moved to clocks. instance and configure an ADC.
+        p.ADC1,
+        false,
+        AdcConfig::default().scan(adc::config::Scan::Disabled),
+        &mut clocks
+    );    
+
+    writeln!(serial, "loop").ok();
+
+    #[cfg(not(feature = "emulation"))]
+    adcDriver0.enable();
+
+    #[cfg(not(feature = "emulation"))]
     let mut p0 = gpiob.pb0.into_analog();
     
 
@@ -49,12 +75,13 @@ fn main() -> ! {
         }
 
 
-        // let adcResult    = adcDriver0.read( &mut p0);
-        // if keyLeft.is_high() {
-            
-        writeln!(serial, "hello world").ok();
+        // let adc_result: Result<u16, nb::Error<()>>= (adcDriver0.read( &mut p0));
 
-        // }
+        if keyLeft.is_high() {
+            
+            writeln!(serial, "hello world").ok();
+            // writeln!(serial, "{}", adc_result.unwrap()).ok();
+        }
 
     }
 }

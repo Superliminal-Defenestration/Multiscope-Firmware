@@ -18,6 +18,10 @@ features = ["stm32f405", ]
 [build-dependencies]
 reqwest = { version = "0.11", features = ["blocking"] }
 
+[features]
+default = []
+emulation = []
+
 
 # Set the default for dependencies.
 [profile.dev.package."*"]

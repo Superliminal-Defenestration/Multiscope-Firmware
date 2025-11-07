@@ -1,3 +1,45 @@
+# MultiScope Firmware
+
+## Compile
+### For hardware
+
+ADCs enabled, all peripherals expected etc
+``` console
+$ cargo build -r
+```
+
+### For emulation through Renode
+
+Emulation feature disables the ADCs which hang on Renode 
+``` console
+$ cargo build -r --features emulation
+```
+
+## Emulation
+
+Use Renode to emulate the environment. The board/periphral layout is descried in ``boardDesc.repl``.
+Run the script ``stm32f4_discovery.resc`` using the Renode Monitor console to initialize the simulation.
+```console
+$ include (path to project)/stm32f4_discovery.resc
+```
+This will create a predefined sim environment. Doing so will open a monitor of the UART4 bus, which is used for debugging / logging
+The simulation must then be started using ``start`` and paused with the ``pause`` commmand in the Renode Monitor.
+
+The peripheral gpioPortB.UserButton can be used to interact with a GPIO pin. To press it, use the following command:
+```console
+$ gpioPortB.Userbutton Press
+```
+The ``Press`` token can be changed for ``Release``, to untoggle the button, or ``Pressed`` to show the state of the button.
+
+### Behavior as of 11/7/25
+
+When unpressed, the ``Uart4`` bus will echo any incoming bytes. When pressed, the ``Uart4`` bus will append a "hello world" line to every message.
+
+
+
+
+# 'OLD:'
+
 # `stm32-template`
 
 > A template for building applications for STM32 microcontrollers

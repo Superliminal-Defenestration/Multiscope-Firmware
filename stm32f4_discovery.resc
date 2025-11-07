@@ -6,11 +6,17 @@ $name?="STM32F4_Discovery"
 mach create $name
 machine LoadPlatformDescription $ORIGIN/boardDesc.repl
 
+
+
 cpu PerformanceInMips 125
 
 $bin?=$ORIGIN/target/thumbv7em-none-eabihf/release/multiscope
 
+
+
 showAnalyzer sysbus.uart4
+
+
 ### Use gpioPortB.UserButton Press/Pressed ### 
 ### Set random board UNIQUE ID ###
 
