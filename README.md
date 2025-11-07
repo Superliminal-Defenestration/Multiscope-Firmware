@@ -17,6 +17,8 @@ $ cargo build -r --features emulation
 
 ## Emulation
 
+### Make sure you COMPILE before emulating! The emulation setup script references the latest release! 
+
 See: [Renode Docs](https://renode.readthedocs.io/en/latest/introduction/using.html)
 
 Use Renode to emulate the environment. The board/periphral layout is descried in ``boardDesc.repl``.
