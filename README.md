@@ -17,12 +17,14 @@ $ cargo build -r --features emulation
 
 ## Emulation
 
+See: [Renode Docs](https://renode.readthedocs.io/en/latest/introduction/using.html)
+
 Use Renode to emulate the environment. The board/periphral layout is descried in ``boardDesc.repl``.
 Run the script ``stm32f4_discovery.resc`` using the Renode Monitor console to initialize the simulation.
 ```console
 $ include (path to project)/stm32f4_discovery.resc
 ```
-This will create a predefined sim environment. Doing so will open a monitor of the UART4 bus, which is used for debugging / logging
+This will create a predefined sim environment. Doing so will open a monitor of the UART4 bus, which is used for debugging / logging.
 The simulation must then be started using ``start`` and paused with the ``pause`` commmand in the Renode Monitor.
 
 The peripheral gpioPortB.UserButton can be used to interact with a GPIO pin. To press it, use the following command:
