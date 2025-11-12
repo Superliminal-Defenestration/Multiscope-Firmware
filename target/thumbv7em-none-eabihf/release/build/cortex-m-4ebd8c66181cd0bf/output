@@ -1,6 +1,0 @@
-cargo:rustc-link-lib=static=cortex-m
-cargo:rustc-link-search=C:\Users\penga\Documents\multiscope-firmware\multiscope\target\thumbv7em-none-eabihf\release\build\cortex-m-4ebd8c66181cd0bf\out
-cargo:rustc-cfg=cortex_m
-cargo:rustc-cfg=armv7m
-cargo:rustc-cfg=armv7em
-cargo:rustc-cfg=has_fpu

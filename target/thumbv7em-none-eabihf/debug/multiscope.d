@@ -1,1 +1,0 @@
-C:\Users\penga\Documents\multiscope-firmware\multiscope\target\thumbv7em-none-eabihf\debug\multiscope: C:\Users\penga\Documents\multiscope-firmware\multiscope\build.rs C:\Users\penga\Documents\multiscope-firmware\multiscope\src\main.rs
