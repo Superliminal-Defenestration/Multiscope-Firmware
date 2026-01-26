@@ -10,8 +10,8 @@ use cortex_m_rt::entry;
 use stm32f4xx_hal::{
    
     
-    adc::{self, Adc, config::AdcConfig}, gpio::{self, AF10, Edge, PB6, PB10, PB11, alt::{fmc::A11, otg_fs::Dm}, gpiob, gpioc}, nb, 
-    otg_fs::{USB, UsbBus, UsbBusType}, pac::{self, ADC1, UART4, USART1, USART3, adc1::{self, ltr}, rcc::cfgr}, prelude::*, rcc::Config as RccConfig, serial::{self, Serial, config::Config}
+    adc::{self, Adc, config::AdcConfig}, gpio::{self, AF10, Edge, PB6, PB10, PB11, alt::{fmc::A11, otg_fs::Dm, tim2}, gpiob, gpioc}, nb, 
+    otg_fs::{USB, UsbBus, UsbBusType}, pac::{self, ADC1, TIM2, UART4, USART1, USART3, adc1::{self, ltr}, rcc::cfgr, tim2}, prelude::*, rcc::Config as RccConfig, serial::{self, Serial, config::Config}, timer::Timer
 };
 use core::fmt::Write; // for pretty formatting of the serial output
 
@@ -41,6 +41,9 @@ fn main() -> ! {
 
     let mut clocks: stm32f4xx_hal::rcc::Rcc = rcc
         .freeze(RccConfig::hse(8.MHz()).sysclk(48.MHz()).require_pll48clk()); // the "freeze" method applies a configuration to the clock config registry
+    let mut tim2 = p.TIM2.counter_ms(&mut clocks);
+    tim2.start(2000.millis()).unwrap();
+   
     // the clock is configured for an 8MHz external oscilator on the OSC pins, caled the HSE. This is chained with a sysclk of 48MHz, which will be achieved through internal multiplication of thre clock's signal.
     let mut serial: Serial<UART4> = Serial::new(p.UART4, (gpioc.pc10,gpioc.pc11), Config::default().baudrate(3200.bps()), &mut clocks).unwrap(); // value is moved to clocks.
 
@@ -119,13 +122,24 @@ fn main() -> ! {
     // #[cfg(not(feature = "emulation"))]
     // let mut p0 = gpiob.pb0.into_analog();
     
-
+    static mut LAST_PRINT: u32 = 0;
     loop { 
 
         if usb_dev.poll(&mut [&mut usb_port]) {
             // SerialPort from usbd_serial does not implement core::fmt::Write; use its write method instead.
-            usb_port.write(b" hi \n").ok();
-            
+            unsafe{
+                let now = tim2.now().ticks(); // in ms
+                if (now.wrapping_sub(LAST_PRINT) > 1000 || LAST_PRINT == 0 ){
+
+                    if usb_port.write(b"hi\r\n").unwrap_or(0) == 4{
+
+                        LAST_PRINT = now;
+                        
+
+                    }
+
+                }
+            } 
         }
 
         /////// IMPORTANT: The below code is commented out to prevent blocking behavior 
