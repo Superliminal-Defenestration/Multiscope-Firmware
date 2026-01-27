@@ -4,13 +4,15 @@
 
 // Halt on panic
 use panic_halt as _;
-
-
+extern crate heapless;
+use heapless::Vec;
 use cortex_m_rt::entry;
+use core::fmt::Write as FmtWrite;
+use heapless::String as HeaplessString;
 use stm32f4xx_hal::{
    
     
-    adc::{self, Adc, config::AdcConfig}, gpio::{self, AF10, Edge, PB6, PB10, PB11, alt::{fmc::A11, otg_fs::Dm, tim2}, gpiob, gpioc}, nb, 
+    adc::{self, Adc, config::AdcConfig}, gpio::{self, AF10, Edge, PB6, PB10, PB11, alt::{fmc::A11, otg_fs::Dm}, gpiob, gpioc}, nb, 
     otg_fs::{USB, UsbBus, UsbBusType}, pac::{self, ADC1, TIM2, UART4, USART1, USART3, adc1::{self, ltr}, rcc::cfgr, tim2}, prelude::*, rcc::Config as RccConfig, serial::{self, Serial, config::Config}, timer::Timer
 };
 use core::fmt::Write; // for pretty formatting of the serial output
@@ -85,7 +87,7 @@ fn main() -> ! {
     ).device_class(USB_CLASS_CDC)
     .strings(&[StringDescriptors::default()
             .manufacturer("Superliminal Defenestration")
-            .product("Multiscope Firmware")
+            .product("Multiscope")
             .serial_number("TEST")])
     .unwrap()
     .build();
@@ -123,15 +125,29 @@ fn main() -> ! {
     // let mut p0 = gpiob.pb0.into_analog();
     
     static mut LAST_PRINT: u32 = 0;
+    static mut LOOP_CYCLES : u32 = 0;
+    static mut PRINT_STR: HeaplessString<128> = HeaplessString::new();
     loop { 
+        unsafe{
+            LOOP_CYCLES = LOOP_CYCLES.wrapping_add(1);
+        }
 
         if usb_dev.poll(&mut [&mut usb_port]) {
+            
+
             // SerialPort from usbd_serial does not implement core::fmt::Write; use its write method instead.
             unsafe{
+                PRINT_STR.clear();
+                write!(PRINT_STR, "Loop cycles: {}", LOOP_CYCLES).ok();
+                write!(PRINT_STR, "\r\n").ok();
+               // PRINT_STR.extend_from_slice(b"Runtime cycles: ").ok();
+                let bytes = PRINT_STR.as_bytes();
+                // PRINT_STR.extend_from_slice(&LOOP_CYCLES.to_be_bytes()).ok();
+                // PRINT_STR.extend_from_slice(b"\r\n").ok();
                 let now = tim2.now().ticks(); // in ms
                 if (now.wrapping_sub(LAST_PRINT) > 1000 || LAST_PRINT == 0 ){
-
-                    if usb_port.write(b"hi\r\n").unwrap_or(0) == 4{
+                    
+                    if usb_port.write(&bytes).unwrap_or(0) == bytes.len(){
 
                         LAST_PRINT = now;
                         
