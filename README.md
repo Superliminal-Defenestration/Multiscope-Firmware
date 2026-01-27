@@ -35,6 +35,11 @@ $ gpioPortB.Userbutton Press
 ```
 The ``Press`` token can be changed for ``Release``, to untoggle the button, or ``Pressed`` to show the state of the button.
 
+### Behavior as of 1/27/26
+
+Uart and USB busses are initialized. Monitor the USB device using a serial monitor to see an output of the current runtime.
+
+
 ### Behavior as of 11/7/25
 
 When unpressed, the ``Uart4`` bus will echo any incoming bytes. When pressed, the ``Uart4`` bus will append a "hello world" line to every message.

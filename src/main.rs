@@ -49,39 +49,28 @@ fn main() -> ! {
     // the clock is configured for an 8MHz external oscilator on the OSC pins, caled the HSE. This is chained with a sysclk of 48MHz, which will be achieved through internal multiplication of thre clock's signal.
     let mut serial: Serial<UART4> = Serial::new(p.UART4, (gpioc.pc10,gpioc.pc11), Config::default().baudrate(3200.bps()), &mut clocks).unwrap(); // value is moved to clocks.
 
-    // let dm: gpio::Pin<'A', 11, gpio::Alternate<10>> = gpioa.pa11.into_alternate::<10>();
     let usb = USB::new(
         (p.OTG_FS_GLOBAL, p.OTG_FS_DEVICE, p.OTG_FS_PWRCLK),
         (gpioa.pa11.into_alternate::<10>(), gpioa.pa12.into_alternate::<10>()),
         &clocks.clocks
-    );
+    ); // Define our USB parameters
     
-    // let usb = USB {
-
-        // // usb_global: p.OTG_FS_GLOBAL,
-        // // usb_device: p.OTG_FS_DEVICE,
-        // // usb_pwrclk: p.OTG_FS_PWRCLK,
-        // // pin_dm: stm32f4xx_hal::gpio::alt::otg_fs::Dm::PA11(dm),
-        // // pin_dp: stm32f4xx_hal::gpio::alt::otg_fs::Dp::PA12(gpioa.pa12.into_alternate::<10>()),
-    //     // hclk: 48.MHz(),
-    // };
-
 
 
     // Endpoint packet memory (size must be enough for all endpoints)
     static mut EP_MEMORY: [u32; 1024] = [0; 1024];
 
     
-    // static   mut USB_BUS: Option<UsbBusAllocator<UsbBusType>> = None;
     let usb_bus = unsafe {
 
         USB_BUS= Some(UsbBus::new(usb, &mut EP_MEMORY));
         USB_BUS.as_ref().unwrap()
-    };
-    let mut usb_port = SerialPort::new(usb_bus);
+    }; // Create a bus in our memory
+    
+    let mut usb_port = SerialPort::new(usb_bus); // Create a port which we can write to
 
 
-    let mut usb_dev = UsbDeviceBuilder::new(
+    let mut usb_dev = UsbDeviceBuilder::new( // Defines a USB device that'll show up in lsusb, etc
         usb_bus,
         UsbVidPid(0x5824, 0x27dd), // THIS NEEDS TO BE CHANGED TO A REAL VID/PID IF YOU WANT TO DISTRIBUTE THE FIRMWARE
     ).device_class(USB_CLASS_CDC)
@@ -99,45 +88,45 @@ fn main() -> ! {
 
     
 
-    /// yeahhh so you deadass can't use the ADC when emulating with renode since renode emulates the individual ADC registries/peripherals
+    // yeahhh so you deadass can't use the ADC when emulating with renode since renode emulates the individual ADC registries/peripherals
     // but DOESNT emulate the common registries (CADC_CRR etc) 
     // if you look at the init behavior for the adc stuff in the hal it'll loop/hang until the adc gets a calibrtion bit and an enable bit / ready bit 
     // which obv we are not getting and no matter how I try to mess with the memory directly the area that would be the CADC_CRR is inaccessible
     // since it doesn't start at a new page (renode limits memory creation to align to the pages) and there's no way to 
     // allias memory
+    // ### Commented code here should work in theory but it doesnt in practice when using renode, so make sure to enable emulation
     // #[cfg(feature = "emulation")]
     // let mut adcDriver0 = (); // dummy placeholder for ADC
 
-    // #[cfg(not(feature = "emulation"))] 
-    // let mut adcDriver0 = Adc::new( // value is moved to clocks. instance and configure an ADC.
-    //     p.ADC1,
-    //     false,
-    //     AdcConfig::default().scan(adc::config::Scan::Disabled),
-    //     &mut clocks
-    // );    
+    #[cfg(not(feature = "emulation"))] 
+    let mut adcDriver0 = Adc::new( // value is moved to clocks. instance and configure an ADC.
+        p.ADC1,
+        false,
+        AdcConfig::default().scan(adc::config::Scan::Disabled),
+        &mut clocks
+    );    
+    adcDriver0.set_resolution(adc::config::Resolution::Eight);
 
     // writeln!(serial, "loop").ok();
 
-    // #[cfg(not(feature = "emulation"))]
-    // adcDriver0.enable();
+    #[cfg(not(feature = "emulation"))]
+    adcDriver0.enable();
 
-    // #[cfg(not(feature = "emulation"))]
-    // let mut p0 = gpiob.pb0.into_analog();
+    #[cfg(not(feature = "emulation"))]
+    let mut p0 = gpiob.pb0.into_analog();
     
     static mut LAST_PRINT: u32 = 0;
     static mut LOOP_CYCLES : u32 = 0;
-    static mut PRINT_STR: HeaplessString<128> = HeaplessString::new();
-    loop { 
-        unsafe{
-            LOOP_CYCLES = LOOP_CYCLES.wrapping_add(1);
-        }
+    static mut PRINT_STR: HeaplessString<128> = HeaplessString::new(); // You should append PRINT_STR to print
+    
+    
+    // setup a function to handle USB output
+    let mut usb_println = |port: &mut SerialPort<'_, UsbBus<USB>> |  {
 
-        if usb_dev.poll(&mut [&mut usb_port]) {
-            
 
             // SerialPort from usbd_serial does not implement core::fmt::Write; use its write method instead.
             unsafe{
-                PRINT_STR.clear();
+                
                 write!(PRINT_STR, "Loop cycles: {}", LOOP_CYCLES).ok();
                 write!(PRINT_STR, "\r\n").ok();
                // PRINT_STR.extend_from_slice(b"Runtime cycles: ").ok();
@@ -147,7 +136,7 @@ fn main() -> ! {
                 let now = tim2.now().ticks(); // in ms
                 if (now.wrapping_sub(LAST_PRINT) > 1000 || LAST_PRINT == 0 ){
                     
-                    if usb_port.write(&bytes).unwrap_or(0) == bytes.len(){
+                    if port.write(&bytes).unwrap_or(0) == bytes.len(){
 
                         LAST_PRINT = now;
                         
@@ -156,7 +145,46 @@ fn main() -> ! {
 
                 }
             } 
+
+    };
+    
+    loop { 
+        unsafe{
+            PRINT_STR.clear();
+            LOOP_CYCLES = LOOP_CYCLES.wrapping_add(1);
+            
+            #[cfg(not(feature = "emulation"))]{
+
+
+                let sample = adcDriver0.convert(&mut p0, adc::config::SampleTime::Cycles_480 );
+                let voltage = adcDriver0.sample_to_millivolts(sample);
+                write!(PRINT_STR, " Current ADC value: {} " , voltage).ok();
+
+            }
+
         }
+
+
+
+
+
+        // Print the buffer (PRINT_STRING) to the usb port    
+        if usb_dev.poll(&mut [&mut usb_port]) {
+            unsafe{
+                usb_println(&mut usb_port);
+                //usb_println(&usb_port);
+            } 
+        }
+
+
+
+
+
+
+
+
+
+
 
         /////// IMPORTANT: The below code is commented out to prevent blocking behavior 
         // AS IT TURNS OUT, NO BLOCKING CAN BE DONE ON THE LOOP SINCE BLOCKING WILL CAUSE ENUMERATION FAILURE!
